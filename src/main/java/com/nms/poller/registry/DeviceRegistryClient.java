@@ -8,14 +8,10 @@ import reactor.core.publisher.Mono;
 
 import java.util.List;
 
-/**
- * HTTP-клиент реестра устройств NMS Backend.
- */
 @Component
 public class DeviceRegistryClient {
 
-    private static final ParameterizedTypeReference<List<Device>> DEVICE_LIST = new ParameterizedTypeReference<>() {
-    };
+    private static final ParameterizedTypeReference<List<Device>> DEVICE_LIST = new ParameterizedTypeReference<>() {};
 
     private final WebClient backendWebClient;
 

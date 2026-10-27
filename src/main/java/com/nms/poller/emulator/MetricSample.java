@@ -7,13 +7,6 @@ import com.fasterxml.jackson.databind.JsonNode;
 
 import java.time.Instant;
 
-/**
- * Одно значение метрики из ответа эмулятора:
- * {@code {"metric": "cpu_load", "value": 42.1, "timestamp": "2026-10-20T12:00:00Z"}}.
- * <p>
- * Факты («дверь открыта», «сеть 220В есть») эмулятор может отдавать как boolean —
- * они приводятся к 1.0 / 0.0, чтобы в событии метрики value всегда было числом.
- */
 @JsonIgnoreProperties(ignoreUnknown = true)
 public record MetricSample(String metric, Double value, Instant timestamp) {
 
@@ -36,10 +29,10 @@ public record MetricSample(String metric, Double value, Instant timestamp) {
         }
         if (node.isTextual()) {
             try {
-                return Double.valueOf(node.textValue());
-            } catch (NumberFormatException e) {
-                return null;
-            }
+                    return Double.valueOf(node.textValue());
+                } catch (NumberFormatException e) {
+                    return null;
+                }
         }
         return null;
     }

@@ -30,7 +30,6 @@ nms:
       retries: 2
       retry-backoff: 500ms
     poll:
-      # «умер» должен обнаруживаться за ≤ 5 минут: 30s × серия TIMEOUT-ов укладывается с запасом
       interval: 30s
       concurrency: 16
     kafka:

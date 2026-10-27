@@ -11,11 +11,6 @@ import org.springframework.stereotype.Component;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 
-/**
- * Локальный кэш реестра устройств. Периодически обновляется из NMS Backend.
- * Если backend недоступен — продолжаем опрашивать последний известный список:
- * падение backend не должно останавливать сбор метрик.
- */
 @Component
 public class DeviceRegistry {
 

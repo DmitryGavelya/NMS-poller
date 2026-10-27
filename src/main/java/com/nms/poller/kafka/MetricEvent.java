@@ -2,13 +2,6 @@ package com.nms.poller.kafka;
 
 import java.time.Instant;
 
-/**
- * Событие метрики в топике {@code nms.metrics}. Ключ сообщения — {@code deviceId}.
- * <p>
- * При {@link PollStatus#TIMEOUT} публикуется одно событие на устройство
- * с {@code metricType = null} и {@code value = null}: недоступность — свойство устройства,
- * а не отдельной метрики.
- */
 public record MetricEvent(
         String deviceId,
         String metricType,

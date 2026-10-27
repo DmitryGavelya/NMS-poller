@@ -7,10 +7,6 @@ import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Component;
 import reactor.core.publisher.Mono;
 
-/**
- * Публикация событий метрик в Kafka. Ключ — deviceId, чтобы метрики одного устройства
- * попадали в одну партицию и сохраняли порядок.
- */
 @Component
 public class MetricProducer {
 
@@ -24,10 +20,6 @@ public class MetricProducer {
         this.topic = props.kafka().topic();
     }
 
-    /**
-     * @return {@code true}, если событие подтверждено брокером; ошибка отправки логируется
-     * и не прерывает цикл опроса остальных устройств
-     */
     public Mono<Boolean> send(MetricEvent event) {
         return Mono.fromFuture(() -> kafkaTemplate.send(topic, event.deviceId(), event))
                 .map(result -> true)

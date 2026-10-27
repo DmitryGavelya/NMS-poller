@@ -9,9 +9,6 @@ import org.springframework.validation.annotation.Validated;
 
 import java.time.Duration;
 
-/**
- * Настройки poller'а (префикс {@code nms.poller}).
- */
 @Validated
 @ConfigurationProperties(prefix = "nms.poller")
 public record PollerProperties(
@@ -21,7 +18,6 @@ public record PollerProperties(
         @Valid @NotNull Kafka kafka
 ) {
 
-    /** Реестр устройств в NMS Backend: GET {baseUrl}/api/devices. */
     public record Backend(
             @NotBlank String baseUrl,
             @NotNull Duration registryRefreshInterval,
@@ -29,21 +25,17 @@ public record PollerProperties(
     ) {
     }
 
-    /** Эмулятор устройств: GET {baseUrl}/devices/{id}/metrics. */
     public record Emulator(
             @NotBlank String baseUrl,
             @NotNull Duration connectTimeout,
-            /* таймаут одной попытки опроса */
             @NotNull Duration timeout,
             @Min(0) int retries,
             @NotNull Duration retryBackoff
     ) {
     }
 
-    /** Цикл опроса. */
     public record Poll(
             @NotNull Duration interval,
-            /* сколько устройств опрашиваем параллельно */
             @Min(1) int concurrency
     ) {
     }

@@ -13,11 +13,6 @@ import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
 
-/**
- * Опрос одного устройства и преобразование ответа в события метрик.
- * Любая ошибка опроса превращается в событие {@code TIMEOUT} — poller никогда не «теряет»
- * опрос молча, иначе backend не сможет обнаружить недоступность устройства.
- */
 @Component
 public class DevicePoller {
 

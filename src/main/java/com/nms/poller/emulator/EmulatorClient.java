@@ -13,11 +13,6 @@ import reactor.util.retry.Retry;
 import java.util.List;
 import java.util.concurrent.TimeoutException;
 
-/**
- * Опрос устройства в эмуляторе: {@code GET /devices/{id}/metrics}.
- * Каждая попытка ограничена таймаутом; сетевые ошибки, таймауты и 5xx повторяются
- * с экспоненциальной задержкой. 4xx не повторяются — это ошибка запроса, а не сбой устройства.
- */
 @Component
 public class EmulatorClient {
 

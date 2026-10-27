@@ -12,11 +12,6 @@ import reactor.core.publisher.Flux;
 
 import java.util.List;
 
-/**
- * Цикл опроса: каждые {@code nms.poller.poll.interval} опрашивает все устройства реестра
- * (параллельно, не более {@code concurrency} одновременно) и публикует события в Kafka.
- * fixedDelay + блокирующее ожидание конца цикла гарантируют, что циклы не накладываются.
- */
 @Component
 public class PollingScheduler {
 
@@ -27,8 +22,12 @@ public class PollingScheduler {
     private final MetricProducer producer;
     private final PollerProperties props;
 
-    public PollingScheduler(DeviceRegistry registry, DevicePoller poller, MetricProducer producer,
-                            PollerProperties props) {
+    public PollingScheduler(
+        DeviceRegistry registry,
+        DevicePoller poller,
+        MetricProducer producer,
+        PollerProperties props
+    ) {
         this.registry = registry;
         this.poller = poller;
         this.producer = producer;
