@@ -1,0 +1,44 @@
+server:
+  port: ${SERVER_PORT:8082}
+
+spring:
+  application:
+    name: nms-poller
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      acks: all
+      properties:
+        enable.idempotence: true
+        spring.json.add.type.headers: false
+  jackson:
+    serialization:
+      write-dates-as-timestamps: false
+
+nms:
+  poller:
+    backend:
+      base-url: ${NMS_BACKEND_URL:http://localhost:8080}
+      registry-refresh-interval: 60s
+      timeout: 5s
+    emulator:
+      base-url: ${DEVICE_EMULATOR_URL:http://localhost:8081}
+      connect-timeout: 2s
+      timeout: 3s
+      retries: 2
+      retry-backoff: 500ms
+    poll:
+      # «умер» должен обнаруживаться за ≤ 5 минут: 30s × серия TIMEOUT-ов укладывается с запасом
+      interval: 30s
+      concurrency: 16
+    kafka:
+      topic: nms.metrics
+      partitions: 3
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
