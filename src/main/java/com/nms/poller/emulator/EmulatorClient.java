@@ -11,6 +11,7 @@ import reactor.core.publisher.Mono;
 import reactor.util.retry.Retry;
 
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.TimeoutException;
 
 @Component
@@ -28,11 +29,23 @@ public class EmulatorClient {
     }
 
     public Mono<List<MetricSample>> fetchMetrics(String deviceId) {
+        return fetchMetrics(deviceId, Set.of());
+    }
+
+    public Mono<List<MetricSample>> fetchMetrics(String deviceId, Set<String> metrics) {
         return emulatorWebClient.get()
-                .uri("/devices/{id}/metrics", deviceId)
+                .uri(uriBuilder -> {
+                    uriBuilder.path("/devices/{id}/metrics");
+                    if (!metrics.isEmpty()) {
+                        uriBuilder.queryParam("metric", metrics);
+                    }
+                    return uriBuilder.build(deviceId);
+                })
                 .retrieve()
                 .bodyToMono(SAMPLE_LIST)
                 .defaultIfEmpty(List.of())
+                .map(samples -> metrics.isEmpty() ? samples
+                        : samples.stream().filter(s -> metrics.contains(s.metric())).toList())
                 .timeout(props.timeout())
                 .retryWhen(Retry.backoff(props.retries(), props.retryBackoff())
                         .filter(EmulatorClient::isRetryable)

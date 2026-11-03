@@ -8,14 +8,11 @@ spring:
     bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
-      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JacksonJsonSerializer
       acks: all
       properties:
         enable.idempotence: true
         spring.json.add.type.headers: false
-  jackson:
-    serialization:
-      write-dates-as-timestamps: false
 
 nms:
   poller:
@@ -30,11 +27,17 @@ nms:
       retries: 2
       retry-backoff: 500ms
     poll:
-      interval: 30s
+      tick: 1s
+      default-interval: 30s
       concurrency: 16
+      metric-intervals: {}
     kafka:
-      topic: nms.metrics
       partitions: 3
+      topics:
+        booleans: nms.metrics.boolean
+        doubles: nms.metrics.double
+        strings: nms.metrics.string
+        timeouts: nms.metrics.timeout
 
 management:
   endpoints:

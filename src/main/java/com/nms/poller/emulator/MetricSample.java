@@ -1,39 +1,23 @@
 package com.nms.poller.emulator;
 
-import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.annotation.JsonSubTypes;
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
 
 import java.time.Instant;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
-public record MetricSample(String metric, Double value, Instant timestamp) {
+@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.PROPERTY, property = "type")
+@JsonSubTypes({
+        @JsonSubTypes.Type(value = BooleanSample.class, name = "BOOLEAN", names = {"boolean", "bool"}),
+        @JsonSubTypes.Type(value = DoubleSample.class, name = "DOUBLE", names = {"double", "number"}),
+        @JsonSubTypes.Type(value = StringSample.class, name = "STRING", names = {"string"})
+})
+public sealed interface MetricSample permits BooleanSample, DoubleSample, StringSample {
 
-    @JsonCreator
-    public static MetricSample of(@JsonProperty("metric") String metric,
-                                  @JsonProperty("value") JsonNode value,
-                                  @JsonProperty("timestamp") Instant timestamp) {
-        return new MetricSample(metric, toDouble(value), timestamp);
-    }
+    String metric();
 
-    private static Double toDouble(JsonNode node) {
-        if (node == null || node.isNull()) {
-            return null;
-        }
-        if (node.isBoolean()) {
-            return node.booleanValue() ? 1.0 : 0.0;
-        }
-        if (node.isNumber()) {
-            return node.doubleValue();
-        }
-        if (node.isTextual()) {
-            try {
-                    return Double.valueOf(node.textValue());
-                } catch (NumberFormatException e) {
-                    return null;
-                }
-        }
-        return null;
-    }
+    Object value();
+
+    Instant timestamp();
 }

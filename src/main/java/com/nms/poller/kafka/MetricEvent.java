@@ -1,20 +1,8 @@
 package com.nms.poller.kafka;
 
-import java.time.Instant;
+public sealed interface MetricEvent extends PollEvent permits BooleanMetricEvent, DoubleMetricEvent, StringMetricEvent {
 
-public record MetricEvent(
-        String deviceId,
-        String metricType,
-        Double value,
-        Instant timestamp,
-        PollStatus pollStatus
-) {
+    String metricType();
 
-    public static MetricEvent success(String deviceId, String metricType, Double value, Instant timestamp) {
-        return new MetricEvent(deviceId, metricType, value, timestamp, PollStatus.SUCCESS);
-    }
-
-    public static MetricEvent timeout(String deviceId, Instant timestamp) {
-        return new MetricEvent(deviceId, null, null, timestamp, PollStatus.TIMEOUT);
-    }
+    Object value();
 }
