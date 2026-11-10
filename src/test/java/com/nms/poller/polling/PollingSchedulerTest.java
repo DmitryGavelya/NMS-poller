@@ -7,6 +7,8 @@ import com.nms.poller.kafka.DoubleMetricEvent;
 import com.nms.poller.kafka.MetricProducer;
 import com.nms.poller.registry.Device;
 import com.nms.poller.registry.DeviceRegistry;
+import com.nms.poller.registry.MetricTypeRegistry;
+import com.nms.poller.registry.MetricTypeRegistryClient;
 import org.junit.jupiter.api.Test;
 import reactor.core.publisher.Mono;
 
@@ -14,7 +16,6 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -31,18 +32,19 @@ class PollingSchedulerTest {
     private final DeviceRegistry registry = mock(DeviceRegistry.class);
     private final DevicePoller poller = mock(DevicePoller.class);
     private final MetricProducer producer = mock(MetricProducer.class);
-    private final PollQueue queue = new PollQueue(TestProps.props(Map.of()));
+    private final MetricTypeRegistry metricTypes = new MetricTypeRegistry(mock(MetricTypeRegistryClient.class), TestProps.props());
+    private final PollQueue queue = new PollQueue(TestProps.props(), metricTypes);
     private final PollingScheduler scheduler = new PollingScheduler(registry, queue, poller, producer,
-            TestProps.props(Map.of()), Clock.fixed(NOW, ZoneOffset.UTC));
+            TestProps.props(), Clock.fixed(NOW, ZoneOffset.UTC));
 
-    private final Device router = new Device("router-1", null, null, null);
-    private final Device lte = new Device("lte-1", null, null, null);
+    private final Device router = new Device(1L, null, null, null);
+    private final Device lte = new Device(2L, null, null, null);
 
     @Test
     void publishesEventsOfAllRequestsAndCountsFailures() {
-        var cpu = DoubleMetricEvent.success("router-1", "cpu_load", 40.0, NOW);
-        var door = BooleanMetricEvent.success("router-1", "door_open", true, NOW);
-        var lteDown = DeviceTimeoutEvent.of("lte-1", NOW);
+        var cpu = DoubleMetricEvent.success(1L, "cpu_load", 40.0, NOW);
+        var door = BooleanMetricEvent.success(1L, "door_open", true, NOW);
+        var lteDown = DeviceTimeoutEvent.of(2L, NOW);
         var routerReq = new PollRequest(router, Set.of("cpu_load", "door_open"));
         var lteReq = new PollRequest(lte, Set.of("cpu_load"));
         when(poller.poll(routerReq)).thenReturn(Mono.just(new PollResult(routerReq, List.of(cpu, door), true)));
@@ -61,7 +63,7 @@ class PollingSchedulerTest {
     void discoveryRegistersMetricsInQueueAndNextTickPollsOnlyDueOnes() {
         when(registry.devices()).thenReturn(List.of(router));
         var discovery = new PollRequest(router, Set.of());
-        var cpu = DoubleMetricEvent.success("router-1", "cpu_load", 40.0, NOW);
+        var cpu = DoubleMetricEvent.success(1L, "cpu_load", 40.0, NOW);
         when(poller.poll(discovery)).thenReturn(Mono.just(new PollResult(discovery, List.of(cpu), true)));
         when(producer.send(cpu)).thenReturn(Mono.just(true));
 
@@ -76,7 +78,7 @@ class PollingSchedulerTest {
     void failedDiscoveryDoesNotRegisterMetrics() {
         when(registry.devices()).thenReturn(List.of(router));
         var discovery = new PollRequest(router, Set.of());
-        var timeout = DeviceTimeoutEvent.of("router-1", NOW);
+        var timeout = DeviceTimeoutEvent.of(1L, NOW);
         when(poller.poll(discovery)).thenReturn(Mono.just(new PollResult(discovery, List.of(timeout), false)));
         when(producer.send(timeout)).thenReturn(Mono.just(true));
 

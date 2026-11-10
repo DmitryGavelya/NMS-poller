@@ -2,25 +2,36 @@ package com.nms.poller.polling;
 
 import com.nms.poller.TestProps;
 import com.nms.poller.registry.Device;
+import com.nms.poller.registry.MetricType;
+import com.nms.poller.registry.MetricTypeRegistry;
+import com.nms.poller.registry.MetricTypeRegistryClient;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import reactor.core.publisher.Mono;
 
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 class PollQueueTest {
 
     private static final Instant T0 = Instant.parse("2026-10-27T10:00:00Z");
 
-    private final Device router = new Device("router-1", "Router", "ACCESS_ROUTER", true);
-    private final Device lte = new Device("lte-1", "LTE", "LTE", true);
-    private final PollQueue queue = new PollQueue(TestProps.props(Map.of(
-            "door_open", Duration.ofSeconds(1),
-            "uptime", Duration.ofMinutes(5))));
+    private final Device router = new Device(1L, "Router", "ACCESS_ROUTER", true);
+    private final Device lte = new Device(2L, "LTE", "LTE", true);
+    private final MetricTypeRegistryClient client = mock(MetricTypeRegistryClient.class);
+    private final MetricTypeRegistry metricTypes = new MetricTypeRegistry(client, TestProps.props());
+    private final PollQueue queue = new PollQueue(TestProps.props(), metricTypes);
+
+    @BeforeEach
+    void loadIntervals() {
+        loadIntervals(new MetricType("door_open", 1), new MetricType("uptime", 300));
+    }
 
     @Test
     void newDeviceIsDiscoveredImmediatelyAndOnlyOnce() {
@@ -44,7 +55,7 @@ class PollQueueTest {
     void pollsEachMetricWithItsOwnInterval() {
         queue.sync(List.of(router), T0);
         queue.pollDue(T0);
-        queue.discovered("router-1", List.of("door_open", "uptime", "cpu_load"), T0);
+        queue.discovered(1L, List.of("door_open", "uptime", "cpu_load"), T0);
 
         assertThat(queue.pollDue(T0)).isEmpty();
         assertThat(queue.pollDue(T0.plusSeconds(1))).containsExactly(request(router, "door_open"));
@@ -60,8 +71,8 @@ class PollQueueTest {
     void batchesMetricsOfOneDeviceButKeepsDevicesSeparate() {
         queue.sync(List.of(router, lte), T0);
         queue.pollDue(T0);
-        queue.discovered("router-1", List.of("cpu_load", "memory_load"), T0);
-        queue.discovered("lte-1", List.of("cpu_load"), T0);
+        queue.discovered(1L, List.of("cpu_load", "memory_load"), T0);
+        queue.discovered(2L, List.of("cpu_load"), T0);
 
         assertThat(queue.pollDue(T0.plusSeconds(30))).containsExactlyInAnyOrder(
                 request(router, "cpu_load", "memory_load"), request(lte, "cpu_load"));
@@ -71,7 +82,7 @@ class PollQueueTest {
     void keepsFixedGridWithoutDriftAndSkipsMissedSlots() {
         queue.sync(List.of(router), T0);
         queue.pollDue(T0);
-        queue.discovered("router-1", List.of("door_open"), T0);
+        queue.discovered(1L, List.of("door_open"), T0);
 
         assertThat(queue.pollDue(T0.plusMillis(1400))).hasSize(1);
         assertThat(queue.pollDue(T0.plusMillis(1999))).isEmpty();
@@ -86,8 +97,8 @@ class PollQueueTest {
     void removedDeviceLosesItsTasksAndReaddedDeviceIsDiscoveredAgain() {
         queue.sync(List.of(router, lte), T0);
         queue.pollDue(T0);
-        queue.discovered("router-1", List.of("door_open"), T0);
-        queue.discovered("lte-1", List.of("door_open"), T0);
+        queue.discovered(1L, List.of("door_open"), T0);
+        queue.discovered(2L, List.of("door_open"), T0);
         assertThat(queue.size()).isEqualTo(2);
 
         queue.sync(List.of(lte), T0.plusSeconds(1));
@@ -102,9 +113,9 @@ class PollQueueTest {
 
     @Test
     void discoveryOfUnknownDeviceOrWithoutMetricsIsIgnored() {
-        queue.discovered("ghost", List.of("cpu_load"), T0);
+        queue.discovered(99L, List.of("cpu_load"), T0);
         queue.sync(List.of(router), T0);
-        queue.discovered("router-1", List.of(), T0);
+        queue.discovered(1L, List.of(), T0);
 
         assertThat(queue.size()).isEqualTo(1);
         assertThat(queue.pollDue(T0)).extracting(PollRequest::isDiscovery).containsExactly(true);
@@ -114,12 +125,33 @@ class PollQueueTest {
     void updatedDeviceDataIsUsedInRequests() {
         queue.sync(List.of(router), T0);
         queue.pollDue(T0);
-        queue.discovered("router-1", List.of("door_open"), T0);
-        Device renamed = new Device("router-1", "Renamed", "ACCESS_ROUTER", true);
+        queue.discovered(1L, List.of("door_open"), T0);
+        Device renamed = new Device(1L, "Renamed", "ACCESS_ROUTER", true);
 
         queue.sync(List.of(renamed), T0);
 
         assertThat(queue.pollDue(T0.plusSeconds(1))).containsExactly(request(renamed, "door_open"));
+    }
+
+    @Test
+    void changedIntervalAppliesFromTheNextScheduledSlot() {
+        queue.sync(List.of(router), T0);
+        queue.pollDue(T0);
+        queue.discovered(1L, List.of("door_open"), T0);
+        assertThat(queue.pollDue(T0.plusSeconds(1))).hasSize(1);
+
+        loadIntervals(new MetricType("door_open", 10));
+
+        assertThat(queue.pollDue(T0.plusSeconds(2))).hasSize(1);
+        assertThat(queue.pollDue(T0.plusSeconds(11))).isEmpty();
+        assertThat(queue.pollDue(T0.plusSeconds(12))).hasSize(1);
+        assertThat(queue.pollDue(T0.plusSeconds(21))).isEmpty();
+        assertThat(queue.pollDue(T0.plusSeconds(22))).hasSize(1);
+    }
+
+    private void loadIntervals(MetricType... types) {
+        when(client.fetchMetricTypes()).thenReturn(Mono.just(List.of(types)));
+        metricTypes.refresh();
     }
 
     private static PollRequest request(Device device, String... metrics) {

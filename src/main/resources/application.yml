@@ -19,6 +19,7 @@ nms:
     backend:
       base-url: ${NMS_BACKEND_URL:http://localhost:8080}
       registry-refresh-interval: 60s
+      metric-types-refresh-interval: 60s
       timeout: 5s
     emulator:
       base-url: ${DEVICE_EMULATOR_URL:http://localhost:8081}
@@ -30,12 +31,11 @@ nms:
       tick: 1s
       default-interval: 30s
       concurrency: 16
-      metric-intervals: {}
     kafka:
       partitions: 3
       topics:
         booleans: nms.metrics.boolean
-        doubles: nms.metrics.double
+        numerics: nms.metrics.numeric
         strings: nms.metrics.string
         timeouts: nms.metrics.timeout
 

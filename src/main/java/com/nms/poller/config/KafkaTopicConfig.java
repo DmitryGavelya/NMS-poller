@@ -15,7 +15,7 @@ public class KafkaTopicConfig {
         int partitions = props.kafka().partitions();
         return new KafkaAdmin.NewTopics(
                 topic(topics.booleans(), partitions),
-                topic(topics.doubles(), partitions),
+                topic(topics.numerics(), partitions),
                 topic(topics.strings(), partitions),
                 topic(topics.timeouts(), partitions));
     }

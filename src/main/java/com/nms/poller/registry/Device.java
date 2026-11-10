@@ -4,9 +4,9 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
 
 @JsonIgnoreProperties(ignoreUnknown = true)
-public record Device(String id, String name, String deviceType, Boolean enabled) {
+public record Device(Long id, String name, String deviceType, Boolean enabled) {
 
     public boolean isPollable() {
-        return id != null && !id.isBlank() && !Boolean.FALSE.equals(enabled);
+        return id != null && !Boolean.FALSE.equals(enabled);
     }
 }

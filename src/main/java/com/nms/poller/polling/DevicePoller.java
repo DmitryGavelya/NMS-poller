@@ -35,7 +35,7 @@ public class DevicePoller {
     public Mono<PollResult> poll(PollRequest request) {
         return Mono.defer(() -> {
             Instant polledAt = clock.instant();
-            String deviceId = request.device().id();
+            long deviceId = request.device().id();
             return emulatorClient.fetchMetrics(deviceId, request.metrics())
                     .map(samples -> new PollResult(request, toEvents(deviceId, samples, polledAt), true))
                     .onErrorResume(e -> {
@@ -46,7 +46,7 @@ public class DevicePoller {
         });
     }
 
-    private static List<PollEvent> toEvents(String deviceId, List<MetricSample> samples, Instant polledAt) {
+    private static List<PollEvent> toEvents(long deviceId, List<MetricSample> samples, Instant polledAt) {
         return samples.stream()
                 .filter(s -> {
                     boolean valid = s.metric() != null && !s.metric().isBlank() && s.value() != null;
@@ -59,7 +59,7 @@ public class DevicePoller {
                 .toList();
     }
 
-    private static PollEvent toEvent(String deviceId, MetricSample sample, Instant timestamp) {
+    private static PollEvent toEvent(long deviceId, MetricSample sample, Instant timestamp) {
         return switch (sample) {
             case BooleanSample s -> BooleanMetricEvent.success(deviceId, s.metric(), s.value(), timestamp);
             case DoubleSample s -> DoubleMetricEvent.success(deviceId, s.metric(), s.value(), timestamp);

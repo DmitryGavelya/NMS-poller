@@ -8,7 +8,6 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.validation.annotation.Validated;
 
 import java.time.Duration;
-import java.util.Map;
 
 @Validated
 @ConfigurationProperties(prefix = "nms.poller")
@@ -22,6 +21,7 @@ public record PollerProperties(
     public record Backend(
             @NotBlank String baseUrl,
             @NotNull Duration registryRefreshInterval,
+            @NotNull Duration metricTypesRefreshInterval,
             @NotNull Duration timeout
     ) {
     }
@@ -38,19 +38,12 @@ public record PollerProperties(
     public record Poll(
             @NotNull Duration tick,
             @NotNull Duration defaultInterval,
-            @Min(1) int concurrency,
-            Map<String, Duration> metricIntervals
+            @Min(1) int concurrency
     ) {
 
         public Poll {
-            metricIntervals = metricIntervals == null ? Map.of() : Map.copyOf(metricIntervals);
             requirePositive("tick", tick);
             requirePositive("default-interval", defaultInterval);
-            metricIntervals.forEach((metric, interval) -> requirePositive("metric-intervals." + metric, interval));
-        }
-
-        public Duration intervalFor(String metric) {
-            return metricIntervals.getOrDefault(metric, defaultInterval);
         }
 
         private static void requirePositive(String name, Duration value) {
@@ -68,7 +61,7 @@ public record PollerProperties(
 
     public record Topics(
             @NotBlank String booleans,
-            @NotBlank String doubles,
+            @NotBlank String numerics,
             @NotBlank String strings,
             @NotBlank String timeouts
     ) {
