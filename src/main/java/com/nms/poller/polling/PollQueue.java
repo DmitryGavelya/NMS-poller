@@ -2,6 +2,7 @@ package com.nms.poller.polling;
 
 import com.nms.poller.config.PollerProperties;
 import com.nms.poller.registry.Device;
+import com.nms.poller.registry.MetricTypeRegistry;
 import org.springframework.stereotype.Component;
 
 import java.time.Duration;
@@ -27,12 +28,14 @@ public class PollQueue {
     }
 
     private final PollerProperties.Poll props;
+    private final MetricTypeRegistry metricTypes;
     private final PriorityQueue<Task> queue = new PriorityQueue<>(Comparator.comparing(Task::dueAt));
     private final Map<Key, Task> tasks = new HashMap<>();
     private final Map<Long, Device> devices = new HashMap<>();
 
-    public PollQueue(PollerProperties props) {
+    public PollQueue(PollerProperties props, MetricTypeRegistry metricTypes) {
         this.props = props.poll();
+        this.metricTypes = metricTypes;
     }
 
     public synchronized void sync(Collection<Device> current, Instant now) {
@@ -64,7 +67,7 @@ public class PollQueue {
                 schedule(key, now.plus(props.defaultInterval()));
             } else {
                 metrics.add(key.metric());
-                schedule(key, nextSlot(task.dueAt(), props.intervalFor(key.metric()), now));
+                schedule(key, nextSlot(task.dueAt(), metricTypes.intervalFor(key.metric()), now));
             }
         }
         List<PollRequest> requests = new ArrayList<>();
@@ -80,7 +83,7 @@ public class PollQueue {
         for (String metric : metrics) {
             Key key = new Key(deviceId, metric);
             if (!tasks.containsKey(key)) {
-                schedule(key, now.plus(props.intervalFor(metric)));
+                schedule(key, now.plus(metricTypes.intervalFor(metric)));
             }
         }
     }

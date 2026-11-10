@@ -2,15 +2,21 @@ package com.nms.poller.polling;
 
 import com.nms.poller.TestProps;
 import com.nms.poller.registry.Device;
+import com.nms.poller.registry.MetricType;
+import com.nms.poller.registry.MetricTypeRegistry;
+import com.nms.poller.registry.MetricTypeRegistryClient;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import reactor.core.publisher.Mono;
 
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 class PollQueueTest {
 
@@ -18,9 +24,14 @@ class PollQueueTest {
 
     private final Device router = new Device(1L, "Router", "ACCESS_ROUTER", true);
     private final Device lte = new Device(2L, "LTE", "LTE", true);
-    private final PollQueue queue = new PollQueue(TestProps.props(Map.of(
-            "door_open", Duration.ofSeconds(1),
-            "uptime", Duration.ofMinutes(5))));
+    private final MetricTypeRegistryClient client = mock(MetricTypeRegistryClient.class);
+    private final MetricTypeRegistry metricTypes = new MetricTypeRegistry(client, TestProps.props());
+    private final PollQueue queue = new PollQueue(TestProps.props(), metricTypes);
+
+    @BeforeEach
+    void loadIntervals() {
+        loadIntervals(new MetricType("door_open", 1), new MetricType("uptime", 300));
+    }
 
     @Test
     void newDeviceIsDiscoveredImmediatelyAndOnlyOnce() {
@@ -120,6 +131,27 @@ class PollQueueTest {
         queue.sync(List.of(renamed), T0);
 
         assertThat(queue.pollDue(T0.plusSeconds(1))).containsExactly(request(renamed, "door_open"));
+    }
+
+    @Test
+    void changedIntervalAppliesFromTheNextScheduledSlot() {
+        queue.sync(List.of(router), T0);
+        queue.pollDue(T0);
+        queue.discovered(1L, List.of("door_open"), T0);
+        assertThat(queue.pollDue(T0.plusSeconds(1))).hasSize(1);
+
+        loadIntervals(new MetricType("door_open", 10));
+
+        assertThat(queue.pollDue(T0.plusSeconds(2))).hasSize(1);
+        assertThat(queue.pollDue(T0.plusSeconds(11))).isEmpty();
+        assertThat(queue.pollDue(T0.plusSeconds(12))).hasSize(1);
+        assertThat(queue.pollDue(T0.plusSeconds(21))).isEmpty();
+        assertThat(queue.pollDue(T0.plusSeconds(22))).hasSize(1);
+    }
+
+    private void loadIntervals(MetricType... types) {
+        when(client.fetchMetricTypes()).thenReturn(Mono.just(List.of(types)));
+        metricTypes.refresh();
     }
 
     private static PollRequest request(Device device, String... metrics) {

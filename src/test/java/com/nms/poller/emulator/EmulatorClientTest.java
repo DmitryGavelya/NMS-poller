@@ -16,7 +16,6 @@ import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -137,8 +136,7 @@ class EmulatorClientTest {
     }
 
     private EmulatorClient client(int retries) {
-        PollerProperties props = TestProps.props("http://127.0.0.1:" + server.getAddress().getPort(), retries,
-                Map.of());
+        PollerProperties props = TestProps.props("http://127.0.0.1:" + server.getAddress().getPort(), retries);
         WebClient webClient = new WebClientConfig().emulatorWebClient(WebClient.builder(), props);
         return new EmulatorClient(webClient, props);
     }

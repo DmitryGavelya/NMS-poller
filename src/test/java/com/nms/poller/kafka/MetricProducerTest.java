@@ -7,7 +7,6 @@ import org.springframework.kafka.support.SendResult;
 import reactor.test.StepVerifier;
 
 import java.time.Instant;
-import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 import static org.mockito.ArgumentMatchers.any;
@@ -22,7 +21,7 @@ class MetricProducerTest {
 
     @SuppressWarnings("unchecked")
     private final KafkaTemplate<String, Object> template = mock(KafkaTemplate.class);
-    private final MetricProducer producer = new MetricProducer(template, TestProps.props(Map.of()));
+    private final MetricProducer producer = new MetricProducer(template, TestProps.props());
 
     @Test
     @SuppressWarnings("unchecked")

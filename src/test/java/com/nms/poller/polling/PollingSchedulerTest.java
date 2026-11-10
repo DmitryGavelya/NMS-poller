@@ -7,6 +7,8 @@ import com.nms.poller.kafka.DoubleMetricEvent;
 import com.nms.poller.kafka.MetricProducer;
 import com.nms.poller.registry.Device;
 import com.nms.poller.registry.DeviceRegistry;
+import com.nms.poller.registry.MetricTypeRegistry;
+import com.nms.poller.registry.MetricTypeRegistryClient;
 import org.junit.jupiter.api.Test;
 import reactor.core.publisher.Mono;
 
@@ -14,7 +16,6 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -31,9 +32,10 @@ class PollingSchedulerTest {
     private final DeviceRegistry registry = mock(DeviceRegistry.class);
     private final DevicePoller poller = mock(DevicePoller.class);
     private final MetricProducer producer = mock(MetricProducer.class);
-    private final PollQueue queue = new PollQueue(TestProps.props(Map.of()));
+    private final MetricTypeRegistry metricTypes = new MetricTypeRegistry(mock(MetricTypeRegistryClient.class), TestProps.props());
+    private final PollQueue queue = new PollQueue(TestProps.props(), metricTypes);
     private final PollingScheduler scheduler = new PollingScheduler(registry, queue, poller, producer,
-            TestProps.props(Map.of()), Clock.fixed(NOW, ZoneOffset.UTC));
+            TestProps.props(), Clock.fixed(NOW, ZoneOffset.UTC));
 
     private final Device router = new Device(1L, null, null, null);
     private final Device lte = new Device(2L, null, null, null);
