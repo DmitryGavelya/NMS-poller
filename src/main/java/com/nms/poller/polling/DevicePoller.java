@@ -1,9 +1,15 @@
 package com.nms.poller.polling;
 
+import com.nms.poller.emulator.BooleanSample;
+import com.nms.poller.emulator.DoubleSample;
 import com.nms.poller.emulator.EmulatorClient;
 import com.nms.poller.emulator.MetricSample;
-import com.nms.poller.kafka.MetricEvent;
-import com.nms.poller.registry.Device;
+import com.nms.poller.emulator.StringSample;
+import com.nms.poller.kafka.BooleanMetricEvent;
+import com.nms.poller.kafka.DeviceTimeoutEvent;
+import com.nms.poller.kafka.DoubleMetricEvent;
+import com.nms.poller.kafka.PollEvent;
+import com.nms.poller.kafka.StringMetricEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -26,29 +32,38 @@ public class DevicePoller {
         this.clock = clock;
     }
 
-    public Mono<List<MetricEvent>> poll(Device device) {
+    public Mono<PollResult> poll(PollRequest request) {
         return Mono.defer(() -> {
             Instant polledAt = clock.instant();
-            return emulatorClient.fetchMetrics(device.id())
-                    .map(samples -> toEvents(device, samples, polledAt))
+            String deviceId = request.device().id();
+            return emulatorClient.fetchMetrics(deviceId, request.metrics())
+                    .map(samples -> new PollResult(request, toEvents(deviceId, samples, polledAt), true))
                     .onErrorResume(e -> {
-                        log.warn("Device {} did not respond: {}", device.id(), e.toString());
-                        return Mono.just(List.of(MetricEvent.timeout(device.id(), polledAt)));
+                        log.warn("Device {} did not respond: {}", deviceId, e.toString());
+                        return Mono.just(new PollResult(request,
+                                List.of(DeviceTimeoutEvent.of(deviceId, polledAt)), false));
                     });
         });
     }
 
-    private static List<MetricEvent> toEvents(Device device, List<MetricSample> samples, Instant polledAt) {
+    private static List<PollEvent> toEvents(String deviceId, List<MetricSample> samples, Instant polledAt) {
         return samples.stream()
                 .filter(s -> {
                     boolean valid = s.metric() != null && !s.metric().isBlank() && s.value() != null;
                     if (!valid) {
-                        log.warn("Skipping invalid sample from device {}: {}", device.id(), s);
+                        log.warn("Skipping invalid sample from device {}: {}", deviceId, s);
                     }
                     return valid;
                 })
-                .map(s -> MetricEvent.success(device.id(), s.metric(), s.value(),
-                        s.timestamp() != null ? s.timestamp() : polledAt))
+                .<PollEvent>map(s -> toEvent(deviceId, s, s.timestamp() != null ? s.timestamp() : polledAt))
                 .toList();
+    }
+
+    private static PollEvent toEvent(String deviceId, MetricSample sample, Instant timestamp) {
+        return switch (sample) {
+            case BooleanSample s -> BooleanMetricEvent.success(deviceId, s.metric(), s.value(), timestamp);
+            case DoubleSample s -> DoubleMetricEvent.success(deviceId, s.metric(), s.value(), timestamp);
+            case StringSample s -> StringMetricEvent.success(deviceId, s.metric(), s.value(), timestamp);
+        };
     }
 }
