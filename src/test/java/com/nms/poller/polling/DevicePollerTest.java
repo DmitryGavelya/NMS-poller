@@ -30,13 +30,13 @@ class DevicePollerTest {
 
     private final EmulatorClient emulatorClient = mock(EmulatorClient.class);
     private final DevicePoller poller = new DevicePoller(emulatorClient, Clock.fixed(NOW, ZoneOffset.UTC));
-    private final Device device = new Device("router-1", "Router 1", "ACCESS_ROUTER", true);
+    private final Device device = new Device(1L, "Router 1", "ACCESS_ROUTER", true);
     private final PollRequest discovery = new PollRequest(device, Set.of());
 
     @Test
     void mapsEachSampleTypeToItsEventType() {
         Instant sampleTime = Instant.parse("2026-10-27T09:59:59Z");
-        when(emulatorClient.fetchMetrics("router-1", Set.of())).thenReturn(Mono.just(List.of(
+        when(emulatorClient.fetchMetrics(1L, Set.of())).thenReturn(Mono.just(List.of(
                 new DoubleSample("cpu_load", 55.0, sampleTime),
                 new BooleanSample("door_open", true, null),
                 new StringSample("firmware", "1.2.3", sampleTime))));
@@ -45,9 +45,9 @@ class DevicePollerTest {
                 .assertNext(result -> {
                     assertThat(result.success()).isTrue();
                     assertThat(result.events()).containsExactly(
-                            DoubleMetricEvent.success("router-1", "cpu_load", 55.0, sampleTime),
-                            BooleanMetricEvent.success("router-1", "door_open", true, NOW),
-                            StringMetricEvent.success("router-1", "firmware", "1.2.3", sampleTime));
+                            DoubleMetricEvent.success(1L, "cpu_load", 55.0, sampleTime),
+                            BooleanMetricEvent.success(1L, "door_open", true, NOW),
+                            StringMetricEvent.success(1L, "firmware", "1.2.3", sampleTime));
                     assertThat(result.metricNames()).containsExactlyInAnyOrder("cpu_load", "door_open", "firmware");
                 })
                 .verifyComplete();
@@ -55,7 +55,7 @@ class DevicePollerTest {
 
     @Test
     void skipsInvalidSamples() {
-        when(emulatorClient.fetchMetrics("router-1", Set.of())).thenReturn(Mono.just(List.of(
+        when(emulatorClient.fetchMetrics(1L, Set.of())).thenReturn(Mono.just(List.of(
                 new DoubleSample(null, 1.0, null),
                 new DoubleSample(" ", 1.0, null),
                 new DoubleSample("temperature", null, null),
@@ -65,30 +65,30 @@ class DevicePollerTest {
 
         StepVerifier.create(poller.poll(discovery))
                 .assertNext(result -> assertThat(result.events())
-                        .containsExactly(DoubleMetricEvent.success("router-1", "cpu_load", 1.0, NOW)))
+                        .containsExactly(DoubleMetricEvent.success(1L, "cpu_load", 1.0, NOW)))
                 .verifyComplete();
     }
 
     @Test
     void requestsOnlyTheDueMetrics() {
         Set<String> due = Set.of("door_open");
-        when(emulatorClient.fetchMetrics("router-1", due))
+        when(emulatorClient.fetchMetrics(1L, due))
                 .thenReturn(Mono.just(List.of(new BooleanSample("door_open", false, NOW))));
 
         StepVerifier.create(poller.poll(new PollRequest(device, due)))
                 .assertNext(result -> assertThat(result.events())
-                        .containsExactly(BooleanMetricEvent.success("router-1", "door_open", false, NOW)))
+                        .containsExactly(BooleanMetricEvent.success(1L, "door_open", false, NOW)))
                 .verifyComplete();
     }
 
     @Test
     void emitsTimeoutEventWhenDeviceDoesNotRespond() {
-        when(emulatorClient.fetchMetrics("router-1", Set.of())).thenReturn(Mono.error(new TimeoutException()));
+        when(emulatorClient.fetchMetrics(1L, Set.of())).thenReturn(Mono.error(new TimeoutException()));
 
         StepVerifier.create(poller.poll(discovery))
                 .assertNext(result -> {
                     assertThat(result.success()).isFalse();
-                    assertThat(result.events()).containsExactly(DeviceTimeoutEvent.of("router-1", NOW));
+                    assertThat(result.events()).containsExactly(DeviceTimeoutEvent.of(1L, NOW));
                     assertThat(result.metricNames()).isEmpty();
                 })
                 .verifyComplete();

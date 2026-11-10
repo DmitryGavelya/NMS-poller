@@ -35,7 +35,7 @@ nms:
       partitions: 3
       topics:
         booleans: nms.metrics.boolean
-        doubles: nms.metrics.double
+        numerics: nms.metrics.numeric
         strings: nms.metrics.string
         timeouts: nms.metrics.timeout
 

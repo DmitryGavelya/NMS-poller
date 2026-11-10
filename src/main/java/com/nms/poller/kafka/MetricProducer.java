@@ -22,7 +22,7 @@ public class MetricProducer {
 
     public Mono<Boolean> send(PollEvent event) {
         String topic = topicFor(event);
-        return Mono.fromFuture(() -> kafkaTemplate.send(topic, event.deviceId(), event))
+        return Mono.fromFuture(() -> kafkaTemplate.send(topic, String.valueOf(event.deviceId()), event))
                 .map(result -> true)
                 .onErrorResume(e -> {
                     log.error("Failed to publish event to {}: {} ({})", topic, event, e.toString());
@@ -33,7 +33,7 @@ public class MetricProducer {
     String topicFor(PollEvent event) {
         return switch (event) {
             case BooleanMetricEvent e -> topics.booleans();
-            case DoubleMetricEvent e -> topics.doubles();
+            case DoubleMetricEvent e -> topics.numerics();
             case StringMetricEvent e -> topics.strings();
             case DeviceTimeoutEvent e -> topics.timeouts();
         };

@@ -12,7 +12,7 @@ public record PollResult(PollRequest request, List<PollEvent> events, boolean su
     public Set<String> metricNames() {
         return events.stream()
                 .filter(MetricEvent.class::isInstance)
-                .map(e -> ((MetricEvent) e).metricType())
+                .map(e -> ((MetricEvent) e).metricTypeCode())
                 .collect(Collectors.toSet());
     }
 }

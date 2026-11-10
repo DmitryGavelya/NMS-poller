@@ -16,8 +16,8 @@ class PollQueueTest {
 
     private static final Instant T0 = Instant.parse("2026-10-27T10:00:00Z");
 
-    private final Device router = new Device("router-1", "Router", "ACCESS_ROUTER", true);
-    private final Device lte = new Device("lte-1", "LTE", "LTE", true);
+    private final Device router = new Device(1L, "Router", "ACCESS_ROUTER", true);
+    private final Device lte = new Device(2L, "LTE", "LTE", true);
     private final PollQueue queue = new PollQueue(TestProps.props(Map.of(
             "door_open", Duration.ofSeconds(1),
             "uptime", Duration.ofMinutes(5))));
@@ -44,7 +44,7 @@ class PollQueueTest {
     void pollsEachMetricWithItsOwnInterval() {
         queue.sync(List.of(router), T0);
         queue.pollDue(T0);
-        queue.discovered("router-1", List.of("door_open", "uptime", "cpu_load"), T0);
+        queue.discovered(1L, List.of("door_open", "uptime", "cpu_load"), T0);
 
         assertThat(queue.pollDue(T0)).isEmpty();
         assertThat(queue.pollDue(T0.plusSeconds(1))).containsExactly(request(router, "door_open"));
@@ -60,8 +60,8 @@ class PollQueueTest {
     void batchesMetricsOfOneDeviceButKeepsDevicesSeparate() {
         queue.sync(List.of(router, lte), T0);
         queue.pollDue(T0);
-        queue.discovered("router-1", List.of("cpu_load", "memory_load"), T0);
-        queue.discovered("lte-1", List.of("cpu_load"), T0);
+        queue.discovered(1L, List.of("cpu_load", "memory_load"), T0);
+        queue.discovered(2L, List.of("cpu_load"), T0);
 
         assertThat(queue.pollDue(T0.plusSeconds(30))).containsExactlyInAnyOrder(
                 request(router, "cpu_load", "memory_load"), request(lte, "cpu_load"));
@@ -71,7 +71,7 @@ class PollQueueTest {
     void keepsFixedGridWithoutDriftAndSkipsMissedSlots() {
         queue.sync(List.of(router), T0);
         queue.pollDue(T0);
-        queue.discovered("router-1", List.of("door_open"), T0);
+        queue.discovered(1L, List.of("door_open"), T0);
 
         assertThat(queue.pollDue(T0.plusMillis(1400))).hasSize(1);
         assertThat(queue.pollDue(T0.plusMillis(1999))).isEmpty();
@@ -86,8 +86,8 @@ class PollQueueTest {
     void removedDeviceLosesItsTasksAndReaddedDeviceIsDiscoveredAgain() {
         queue.sync(List.of(router, lte), T0);
         queue.pollDue(T0);
-        queue.discovered("router-1", List.of("door_open"), T0);
-        queue.discovered("lte-1", List.of("door_open"), T0);
+        queue.discovered(1L, List.of("door_open"), T0);
+        queue.discovered(2L, List.of("door_open"), T0);
         assertThat(queue.size()).isEqualTo(2);
 
         queue.sync(List.of(lte), T0.plusSeconds(1));
@@ -102,9 +102,9 @@ class PollQueueTest {
 
     @Test
     void discoveryOfUnknownDeviceOrWithoutMetricsIsIgnored() {
-        queue.discovered("ghost", List.of("cpu_load"), T0);
+        queue.discovered(99L, List.of("cpu_load"), T0);
         queue.sync(List.of(router), T0);
-        queue.discovered("router-1", List.of(), T0);
+        queue.discovered(1L, List.of(), T0);
 
         assertThat(queue.size()).isEqualTo(1);
         assertThat(queue.pollDue(T0)).extracting(PollRequest::isDiscovery).containsExactly(true);
@@ -114,8 +114,8 @@ class PollQueueTest {
     void updatedDeviceDataIsUsedInRequests() {
         queue.sync(List.of(router), T0);
         queue.pollDue(T0);
-        queue.discovered("router-1", List.of("door_open"), T0);
-        Device renamed = new Device("router-1", "Renamed", "ACCESS_ROUTER", true);
+        queue.discovered(1L, List.of("door_open"), T0);
+        Device renamed = new Device(1L, "Renamed", "ACCESS_ROUTER", true);
 
         queue.sync(List.of(renamed), T0);
 

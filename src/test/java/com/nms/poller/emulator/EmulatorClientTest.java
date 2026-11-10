@@ -43,13 +43,13 @@ class EmulatorClientTest {
 
     @Test
     void parsesSamplesByTypeDiscriminator() {
-        respond("/devices/router-1/metrics", 200, """
+        respond("/devices/1/metrics", 200, """
                 [{"type":"DOUBLE","metric":"cpu_load","value":42.5,"timestamp":"2026-10-20T12:00:00Z"},
                  {"type":"BOOLEAN","metric":"door_open","value":true,"timestamp":"2026-10-20T12:00:00Z"},
                  {"type":"STRING","metric":"firmware","value":"1.2","timestamp":"2026-10-20T12:00:00Z"}]
                 """);
 
-        StepVerifier.create(client(2).fetchMetrics("router-1"))
+        StepVerifier.create(client(2).fetchMetrics(1L))
                 .assertNext(samples -> assertThat(samples).containsExactly(
                         new DoubleSample("cpu_load", 42.5, Instant.parse("2026-10-20T12:00:00Z")),
                         new BooleanSample("door_open", true, Instant.parse("2026-10-20T12:00:00Z")),
@@ -60,7 +60,7 @@ class EmulatorClientTest {
     @Test
     void sendsRequestedMetricsAsQueryAndFiltersOthers() {
         AtomicReference<String> query = new AtomicReference<>();
-        server.createContext("/devices/router-1/metrics", exchange -> {
+        server.createContext("/devices/1/metrics", exchange -> {
             query.set(exchange.getRequestURI().getRawQuery());
             byte[] body = """
                     [{"type":"DOUBLE","metric":"cpu_load","value":1},
@@ -72,7 +72,7 @@ class EmulatorClientTest {
             exchange.close();
         });
 
-        StepVerifier.create(client(0).fetchMetrics("router-1", Set.of("cpu_load")))
+        StepVerifier.create(client(0).fetchMetrics(1L, Set.of("cpu_load")))
                 .assertNext(samples -> assertThat(samples).containsExactly(new DoubleSample("cpu_load", 1.0, null)))
                 .verifyComplete();
         assertThat(query.get()).isEqualTo("metric=cpu_load");
@@ -80,7 +80,7 @@ class EmulatorClientTest {
 
     @Test
     void retriesServerErrorsThenSucceeds() {
-        server.createContext("/devices/olt-1/metrics", exchange -> {
+        server.createContext("/devices/3/metrics", exchange -> {
             int n = requests.incrementAndGet();
             byte[] body = (n < 3 ? "oops" : "[{\"type\":\"DOUBLE\",\"metric\":\"rx_power\",\"value\":-21.3}]")
                     .getBytes(StandardCharsets.UTF_8);
@@ -90,7 +90,7 @@ class EmulatorClientTest {
             exchange.close();
         });
 
-        StepVerifier.create(client(2).fetchMetrics("olt-1"))
+        StepVerifier.create(client(2).fetchMetrics(3L))
                 .assertNext(samples -> assertThat(samples).singleElement()
                         .satisfies(s -> assertThat(s.value()).isEqualTo(-21.3)))
                 .verifyComplete();
@@ -99,9 +99,9 @@ class EmulatorClientTest {
 
     @Test
     void doesNotRetryClientErrors() {
-        respond("/devices/unknown/metrics", 404, "not found");
+        respond("/devices/404/metrics", 404, "not found");
 
-        StepVerifier.create(client(2).fetchMetrics("unknown"))
+        StepVerifier.create(client(2).fetchMetrics(404L))
                 .expectError(WebClientResponseException.NotFound.class)
                 .verify();
         assertThat(requests).hasValue(1);
@@ -109,7 +109,7 @@ class EmulatorClientTest {
 
     @Test
     void failsWhenDeviceDoesNotAnswerInTime() {
-        server.createContext("/devices/lte-1/metrics", exchange -> {
+        server.createContext("/devices/2/metrics", exchange -> {
             requests.incrementAndGet();
             try {
                 Thread.sleep(1_000);
@@ -119,7 +119,7 @@ class EmulatorClientTest {
             exchange.close();
         });
 
-        StepVerifier.create(client(1).fetchMetrics("lte-1"))
+        StepVerifier.create(client(1).fetchMetrics(2L))
                 .expectError()
                 .verify(Duration.ofSeconds(5));
         assertThat(requests).hasValue(2);

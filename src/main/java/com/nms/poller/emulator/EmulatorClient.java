@@ -28,11 +28,11 @@ public class EmulatorClient {
         this.props = props.emulator();
     }
 
-    public Mono<List<MetricSample>> fetchMetrics(String deviceId) {
+    public Mono<List<MetricSample>> fetchMetrics(long deviceId) {
         return fetchMetrics(deviceId, Set.of());
     }
 
-    public Mono<List<MetricSample>> fetchMetrics(String deviceId, Set<String> metrics) {
+    public Mono<List<MetricSample>> fetchMetrics(long deviceId, Set<String> metrics) {
         return emulatorWebClient.get()
                 .uri(uriBuilder -> {
                     uriBuilder.path("/devices/{id}/metrics");

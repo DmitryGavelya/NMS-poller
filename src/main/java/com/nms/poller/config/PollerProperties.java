@@ -68,7 +68,7 @@ public record PollerProperties(
 
     public record Topics(
             @NotBlank String booleans,
-            @NotBlank String doubles,
+            @NotBlank String numerics,
             @NotBlank String strings,
             @NotBlank String timeouts
     ) {

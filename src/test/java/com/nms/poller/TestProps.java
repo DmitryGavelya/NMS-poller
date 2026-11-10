@@ -11,7 +11,7 @@ public final class TestProps {
     }
 
     public static PollerProperties.Topics topics() {
-        return new PollerProperties.Topics("t.bool", "t.double", "t.string", "t.timeout");
+        return new PollerProperties.Topics("t.bool", "t.numeric", "t.string", "t.timeout");
     }
 
     public static PollerProperties props(Map<String, Duration> metricIntervals) {

@@ -20,7 +20,7 @@ import java.util.Set;
 @Component
 public class PollQueue {
 
-    private record Key(String deviceId, String metric) {
+    private record Key(long deviceId, String metric) {
     }
 
     private record Task(Key key, Instant dueAt) {
@@ -29,14 +29,14 @@ public class PollQueue {
     private final PollerProperties.Poll props;
     private final PriorityQueue<Task> queue = new PriorityQueue<>(Comparator.comparing(Task::dueAt));
     private final Map<Key, Task> tasks = new HashMap<>();
-    private final Map<String, Device> devices = new HashMap<>();
+    private final Map<Long, Device> devices = new HashMap<>();
 
     public PollQueue(PollerProperties props) {
         this.props = props.poll();
     }
 
     public synchronized void sync(Collection<Device> current, Instant now) {
-        Map<String, Device> byId = new LinkedHashMap<>();
+        Map<Long, Device> byId = new LinkedHashMap<>();
         current.forEach(d -> byId.put(d.id(), d));
 
         devices.keySet().removeIf(id -> !byId.containsKey(id));
@@ -52,7 +52,7 @@ public class PollQueue {
     }
 
     public synchronized List<PollRequest> pollDue(Instant now) {
-        Map<String, Set<String>> due = new LinkedHashMap<>();
+        Map<Long, Set<String>> due = new LinkedHashMap<>();
         while (!queue.isEmpty() && !queue.peek().dueAt().isAfter(now)) {
             Task task = queue.poll();
             if (tasks.get(task.key()) != task) {
@@ -72,7 +72,7 @@ public class PollQueue {
         return requests;
     }
 
-    public synchronized void discovered(String deviceId, Collection<String> metrics, Instant now) {
+    public synchronized void discovered(long deviceId, Collection<String> metrics, Instant now) {
         if (!devices.containsKey(deviceId) || metrics.isEmpty()) {
             return;
         }
